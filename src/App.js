@@ -1,18 +1,43 @@
 import { useState } from "react";
 
-const initialItems = [
-  { id: 1, description: "Passports", quantity: 2, packed: false },
-  { id: 2, description: "Socks", quantity: 12, packed: false },
-  { id: 3, description: "Charger", quantity: 1, packed: false },
-];
-
 function App() {
+  const [items, setItems] = useState([]);
+
+  function handleAddItem(item) {
+    setItems([...items, item]);
+  }
+
+  function handleDelete(id) {
+    setItems((items) => items.filter((item) => item.id !== id));
+  }
+
+  function handleClearTable() {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete all items ?"
+    );
+
+    if (confirmed) setItems([]);
+  }
+
+  function handleTogglePacked(id) {
+    setItems((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, packed: !item.packed } : item
+      )
+    );
+  }
+
   return (
     <div className="app">
       <Logo />
-      <Form />
-      <PackingList />
-      <Stats />
+      <Form onAddItem={handleAddItem} />
+      <PackingList
+        items={items}
+        onDeleteItem={handleDelete}
+        onTogglePacked={handleTogglePacked}
+        onClearTable={handleClearTable}
+      />
+      <Stats items={items} />
     </div>
   );
 }
@@ -20,7 +45,7 @@ function App() {
 function Logo() {
   return <h1>🏝️ FAR AWAY 🧳</h1>;
 }
-function Form() {
+function Form({ onAddItem }) {
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState(1);
 
@@ -34,8 +59,9 @@ function Form() {
       quantity,
       packed: false,
     };
-    initialItems.push(newItem);
-    console.log(initialItems);
+
+    onAddItem(newItem);
+
     setDescription("");
     setQuantity(1);
   }
@@ -66,31 +92,82 @@ function Form() {
     </form>
   );
 }
-function PackingList() {
+function PackingList({ items, onDeleteItem, onTogglePacked, onClearTable }) {
+  const [sortBy, setSortBy] = useState("input");
+
+  let sortedItems;
+
+  if (sortBy === "input") {
+    sortedItems = items;
+  } else if (sortBy === "description") {
+    sortedItems = items
+      .slice()
+      .sort((a, b) => a.description.localeCompare(b.description));
+  } else if (sortBy === "packed") {
+    sortedItems = items
+      .slice()
+      .sort((a, b) => Number(a.packed) - Number(b.packed));
+  }
+
   return (
     <div className="list">
       <ul>
-        {initialItems.map((item) => (
-          <Item item={item} key={item.id} />
+        {sortedItems.map((item) => (
+          <Item
+            item={item}
+            key={item.id}
+            onDeleteItem={onDeleteItem}
+            onTogglePacked={onTogglePacked}
+          />
         ))}
       </ul>
+
+      <div className="actions">
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="input">Sort by input order</option>
+          <option value="description">Sort by description</option>
+          <option value="packed">Sort by packed status</option>
+        </select>
+        <button onClick={onClearTable}>Clear</button>
+      </div>
     </div>
   );
 }
-function Stats() {
+function Stats({ items }) {
+  const numItems = items.length;
+  const packedItems = items.filter((item) => item.packed === true).length;
+  const percantage = Math.floor((packedItems / numItems) * 100);
+
+  if (!items.length) {
+    return (
+      <footer className="stats">
+        <em>Start adding to your list! 🚀</em>
+      </footer>
+    );
+  }
   return (
     <footer className="stats">
-      <em>You have X items on your list, and you already packed X (X%)</em>
+      <em>
+        {percantage !== 100
+          ? `You have ${numItems} items on your list, and you already packed
+          ${packedItems} (${percantage}%)`
+          : "You have everything ready. Let's Go! ✈"}
+      </em>
     </footer>
   );
 }
-function Item({ item }) {
+function Item({ item, onDeleteItem, onTogglePacked }) {
   return (
     <li>
+      <input
+        type="checkbox"
+        value={item.packed}
+        onChange={() => onTogglePacked(item.id)}
+      ></input>
       <span style={item.packed ? { textDecoration: "line-through" } : {}}>
         {item.description} {item.quantity}
       </span>
-      <button>❌</button>
+      <button onClick={() => onDeleteItem(item.id)}>❌</button>
     </li>
   );
 }
